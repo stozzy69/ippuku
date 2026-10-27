@@ -1,0 +1,68 @@
+{
+  "ranAt": "2026-10-27T02:52:06.552Z",
+  "radius": 3000,
+  "endpoints": [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.osm.jp/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+  ],
+  "runs": [
+    {
+      "label": "umeda",
+      "endpoint": "https://overpass-api.de/api/interpreter",
+      "status": 406,
+      "ms": 751,
+      "cors": null,
+      "bytes": 156,
+      "remark": null,
+      "elements": null,
+      "snippet": "<html>\r\n<head><title>406 Not Acceptable</title></head>\r\n<body>\r\n<center><h1>406 Not Acceptable</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n"
+    },
+    {
+      "label": "namba",
+      "endpoint": "https://overpass-api.de/api/interpreter",
+      "status": 406,
+      "ms": 138,
+      "cors": null,
+      "bytes": 156,
+      "remark": null,
+      "elements": null,
+      "snippet": "<html>\r\n<head><title>406 Not Acceptable</title></head>\r\n<body>\r\n<center><h1>406 Not Acceptable</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n"
+    },
+    {
+      "label": "tennoji",
+      "endpoint": "https://overpass-api.de/api/interpreter",
+      "status": 406,
+      "ms": 138,
+      "cors": null,
+      "bytes": 156,
+      "remark": null,
+      "elements": null,
+      "snippet": "<html>\r\n<head><title>406 Not Acceptable</title></head>\r\n<body>\r\n<center><h1>406 Not Acceptable</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n"
+    },
+    {
+      "label": "umeda",
+      "endpoint": "https://overpass.osm.jp/api/interpreter",
+      "error": "TypeError: fetch failed",
+      "ms": 614
+    },
+    {
+      "label": "umeda",
+      "endpoint": "https://overpass.private.coffee/api/interpreter",
+      "status": 429,
+      "ms": 1240,
+      "cors": null,
+      "bytes": 89,
+      "remark": null,
+      "elements": null,
+      "snippet": "Please include a meaningful User-Agent string with your requests to avoid rate-limiting.\n"
+    },
+    {
+      "label": "umeda",
+      "endpoint": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+      "error": "AbortError: This operation was aborted",
+      "ms": 40000
+    }
+  ]
+}
