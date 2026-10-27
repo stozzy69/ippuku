@@ -704,6 +704,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   --radius: 18px;
   --font-ui: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", system-ui, sans-serif;
   --font-display: "Instrument Serif", "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", Georgia, serif;
+  --tile-filter: none;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -711,14 +712,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
     --bg: #121820; --surface: #1B232D; --surface-2: #263039; --fg: #F1ECE2; --fg-2: #A4ADB8;
     --line: rgba(241, 236, 226, .13); --ember: #F0A43A; --ember-ink: #1A1206; --leaf: #46C49F; --leaf-ink: #06201A;
     --ghost: #7D8894; --you: #5B8DFF; --ok: #46C49F; --warn: #F07A62; --glass: rgba(27, 35, 45, .88);
-    --shadow: 0 10px 30px rgba(0, 0, 0, .55); color-scheme: dark;
+    --shadow: 0 10px 30px rgba(0, 0, 0, .55); --tile-filter: invert(1) hue-rotate(185deg) brightness(.85) contrast(.9) saturate(.55); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #121820; --surface: #1B232D; --surface-2: #263039; --fg: #F1ECE2; --fg-2: #A4ADB8;
   --line: rgba(241, 236, 226, .13); --ember: #F0A43A; --ember-ink: #1A1206; --leaf: #46C49F; --leaf-ink: #06201A;
   --ghost: #7D8894; --you: #5B8DFF; --ok: #46C49F; --warn: #F07A62; --glass: rgba(27, 35, 45, .88);
-  --shadow: 0 10px 30px rgba(0, 0, 0, .55); color-scheme: dark;
+  --shadow: 0 10px 30px rgba(0, 0, 0, .55); --tile-filter: invert(1) hue-rotate(185deg) brightness(.85) contrast(.9) saturate(.55); color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -736,6 +737,7 @@ svg { display: block; }
 
 #app { position: fixed; inset: 0; }
 #map { position: absolute; inset: 0; background: var(--bg); }
+.leaflet-tile-pane { filter: var(--tile-filter); }
 .leaflet-container { font-family: var(--font-ui); }
 .leaflet-control-attribution { background: var(--glass) !important; color: var(--fg-2) !important; font-size: 10px; margin: 0 !important; padding: 2px 6px; border-top-left-radius: 8px; }
 .leaflet-control-attribution a { color: var(--fg-2) !important; }
@@ -952,7 +954,7 @@ svg { display: block; }
       <div class="rule"><div class="ico"><svg><use href="#i-room"/></svg></div><div><b>Two kinds of smoking room</b><p>喫煙専用室 (cigarette room): smoke only, no food or drink inside; your coffee waits at the table. 加熱式たばこ専用室 (heated-tobacco room): you can bring the coffee in, but it is heated tobacco only.</p></div></div>
       <div class="rule"><div class="ico"><svg><use href="#i-spot"/></svg></div><div><b>The cheap outdoor combo</b><p>Konbini coffee (Lawson, 7-Eleven, FamilyMart) and a public smoking spot. Outdoor spots show the nearest coffee source.</p></div></div>
       <div class="rule"><div class="ico"><svg><use href="#i-q"/></svg></div><div><b>Unverified chains</b><p>Dashed markers are chains that usually run a smoking room (Komeda, Doutor, Veloce, Pronto, Excelsior, Kohikan and others) but with no smoking tag on the map yet. Check the door sign.</p></div></div>
-      <small>Map data © OpenStreetMap contributors, fetched live through the Overpass API. Tiles © CARTO. A place is only as current as its last map edit; the open/closed state uses the hours recorded on the map.</small>
+      <small>Places © OpenStreetMap contributors, fetched live through the Overpass API. Base map: 地理院タイル (Geospatial Information Authority of Japan). A place is only as current as its last map edit; the open/closed state uses the hours recorded on the map.</small>
     </div>
   </div>
 </div>
@@ -1124,16 +1126,19 @@ svg { display: block; }
   // ---------- map ----------
   const map = L.map('map', { zoomControl: false, attributionControl: true, zoomSnap: 0.5 }).setView([OSAKA.lat, OSAKA.lon], 15);
   const dark = () => document.documentElement.dataset.theme === 'dark' || (document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
-  let tiles = null, tileErrors = 0, usingFallbackTiles = false;
+  // Keyless basemaps: GSI's 淡色地図 (Japan's national mapping agency) first, OpenStreetMap if it fails. Dark mode is a CSS filter on the tile pane.
+  const TILE_SETS = [
+    { url: 'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', opts: { maxNativeZoom: 18, maxZoom: 20, attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a> · places © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' } },
+    { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', opts: { maxNativeZoom: 19, maxZoom: 20, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' } },
+  ];
+  let tiles = null, tileErrors = 0, tileSet = 0;
   function setTiles() {
     if (tiles) tiles.remove();
-    const url = usingFallbackTiles ? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-      : (dark() ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png');
-    tiles = L.tileLayer(url, { subdomains: usingFallbackTiles ? 'abc' : 'abcd', maxZoom: 20, maxNativeZoom: 19, attribution: usingFallbackTiles ? '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' : '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>' }).addTo(map);
-    tiles.on('tileerror', () => { if (!usingFallbackTiles && ++tileErrors > 8) { usingFallbackTiles = true; setTiles(); } });
+    const t = TILE_SETS[tileSet];
+    tiles = L.tileLayer(t.url, t.opts).addTo(map);
+    tiles.on('tileerror', () => { if (tileSet < TILE_SETS.length - 1 && ++tileErrors > 6) { tileErrors = 0; tileSet++; setTiles(); } });
   }
   setTiles();
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!usingFallbackTiles) setTiles(); });
 
   const markers = L.layerGroup().addTo(map);
   const markerById = new Map();
