@@ -1,0 +1,23 @@
+name: Probe Overpass
+# Runs the app's real data query from a runner with open internet and commits the result to probe/result.json.
+on:
+  workflow_dispatch:
+  push:
+    paths: ['probe/probe.mjs', '.github/workflows/probe.yml']
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node probe/probe.mjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add probe/result.json
+          git commit -m "probe: Overpass results $(date -u +%FT%TZ)" || exit 0
+          git push

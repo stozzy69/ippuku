@@ -1116,11 +1116,12 @@ svg { display: block; }
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const OSAKA = { lat: 34.7024, lon: 135.4959 }; // Osaka Station: the fallback when location is unavailable
-  const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
-  const RADII = [1200, 2500, 4000];
+  const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.osm.jp/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+  const RADIUS = 3000;            // one query covers a walkable radius; the list is sorted nearest-first
+  const REQUERY_AFTER = 1200;     // metres moved before the area is searched again
   const CACHE_TTL = 30 * 60e3;
 
-  const state = { you: null, live: false, manual: false, center: null, radius: RADII[0], places: [], sources: [], filter: 'all', showLikely: true, selected: null, updatedAt: null, loading: false, error: null, sheet: 'peek' };
+  const state = { you: null, live: false, manual: false, center: null, radius: RADIUS, places: [], sources: [], filter: 'all', showLikely: true, selected: null, updatedAt: null, loading: false, loadingSince: null, loadingNote: '', error: null, sheet: 'peek' };
   try { const f = localStorage.getItem('ippuku.filter'); if (['all', 'indoor', 'outdoor'].includes(f)) state.filter = f; state.showLikely = localStorage.getItem('ippuku.likely') !== 'off'; } catch (e) {}
 
   // ---------- map ----------
@@ -1174,12 +1175,13 @@ svg { display: block; }
   function readCache(k) { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v && Date.now() - v.t < CACHE_TTL ? v : null; } catch (e) { return null; } }
   function writeCache(k, elements) { try { localStorage.setItem(k, JSON.stringify({ t: Date.now(), elements })); } catch (e) {} }
 
-  async function overpass(q) {
+  async function overpass(q, onProgress) {
     let lastErr = null;
-    for (const ep of ENDPOINTS) {
-      const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 22000);
+    for (let i = 0; i < ENDPOINTS.length; i++) {
+      const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 18000);
+      if (onProgress) onProgress(i);
       try {
-        const res = await fetch(ep, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctrl.signal });
+        const res = await fetch(ENDPOINTS[i], { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctrl.signal });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         if (!Array.isArray(data.elements)) throw new Error('bad response');
@@ -1188,6 +1190,8 @@ svg { display: block; }
     }
     throw lastErr || new Error('no endpoint');
   }
+  // While a search runs, the sheet's meta line counts the seconds so a slow server looks slow rather than dead.
+  setInterval(() => { if (state.loading && state.loadingSince) $('#sheetMeta').textContent = 'Searching ' + H.fmtDist(state.radius) + '… ' + Math.round((Date.now() - state.loadingSince) / 1000) + ' s' + state.loadingNote; }, 1000);
 
   function applyData(elements) {
     const places = [], sources = [], seen = new Set();
@@ -1218,21 +1222,27 @@ svg { display: block; }
   }
 
   let queryToken = 0;
-  async function query(lat, lon, radiusIdx, opts) {
-    opts = opts || {}; radiusIdx = radiusIdx || 0;
+  async function query(lat, lon, _unused, opts) {
+    opts = opts || {};
     const token = ++queryToken;
-    state.center = { lat, lon }; state.radius = RADII[radiusIdx]; state.loading = true; state.error = null; render();
+    state.center = { lat, lon }; state.radius = RADIUS; state.loading = true; state.loadingSince = Date.now(); state.loadingNote = ''; state.error = null; render();
     const key = cacheKey(lat, lon, state.radius);
     const cached = opts.force ? null : readCache(key);
     let elements = null;
     if (cached) { elements = cached.elements; state.updatedAt = cached.t; }
     else {
-      try { const data = await overpass(H.buildQuery(lat, lon, state.radius)); if (token !== queryToken) return; elements = data.elements; writeCache(key, elements); state.updatedAt = Date.now(); }
-      catch (e) { if (token !== queryToken) return; state.loading = false; state.error = 'The map data server did not answer. Tap refresh to try again.'; render(); return; }
+      try {
+        const data = await overpass(H.buildQuery(lat, lon, state.radius), i => { state.loadingNote = i ? ' · server ' + (i + 1) + ' of ' + ENDPOINTS.length : ''; });
+        if (token !== queryToken) return;
+        elements = data.elements; writeCache(key, elements); state.updatedAt = Date.now();
+      } catch (e) {
+        if (token !== queryToken) return;
+        state.loading = false; state.loadingSince = null;
+        state.errorKind = 'server'; state.error = 'No map data server answered (' + (e && e.message ? e.message : 'network') + ').'; render(); return;
+      }
     }
     applyData(elements);
-    if (state.places.length < 5 && radiusIdx < RADII.length - 1) { return query(lat, lon, radiusIdx + 1, opts); }
-    state.loading = false; render();
+    state.loading = false; state.loadingSince = null; render();
     if (opts.fit) fitToPlaces();
   }
 
@@ -1246,7 +1256,7 @@ svg { display: block; }
   // ---------- location ----------
   let watchId = null, locateTimer = null;
   function startLocating() {
-    if (!navigator.geolocation) { state.error = 'This device has no location service. Tap the map to set where you are.'; render(); return; }
+    if (!navigator.geolocation) { state.errorKind = 'location'; state.error = 'This device has no location service. Press and hold the map to set where you are.'; render(); return; }
     setLive(false, 'Locating');
     navigator.geolocation.getCurrentPosition(onPos, onPosErr, { enableHighAccuracy: true, timeout: 15000, maximumAge: 20000 });
     if (watchId == null) watchId = navigator.geolocation.watchPosition(onPos, () => setLive(false, 'No fix'), { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
@@ -1260,14 +1270,15 @@ svg { display: block; }
     if (state.manual) return; // distances are measured from the chosen origin, not from the phone
     if (first || !state.center) { map.setView([you.lat, you.lon], 16); query(you.lat, you.lon, 0, { fit: true }); return; }
     const moved = H.haversine(you, state.center);
-    if (moved > Math.max(450, state.radius * 0.35) && !state.loading && (!lastMoveRequery || Date.now() - lastMoveRequery > 20000)) { lastMoveRequery = Date.now(); query(you.lat, you.lon, 0); return; }
+    if (moved > REQUERY_AFTER && !state.loading && (!lastMoveRequery || Date.now() - lastMoveRequery > 20000)) { lastMoveRequery = Date.now(); query(you.lat, you.lon, 0); return; }
     // GPS jitter of a few metres is not worth rebuilding the list for
     if (!lastRenderedAt || H.haversine(you, lastRenderedAt) > 15) { refreshDistances(); render(); }
   }
   function onPosErr(err) {
     if (state.you) return;
     setLive(false, err.code === 1 ? 'Location off' : 'No fix');
-    state.error = err.code === 1 ? 'Location is off for Ippuku. Allow it for this site (or this home-screen app) in iPhone Settings, or tap the map to set where you are.' : 'Could not get a location fix yet. Tap the map to set where you are, or wait a moment.';
+    state.errorKind = 'location';
+    state.error = err.code === 1 ? 'Location is off for Ippuku. Allow it for this site (or this home-screen app) in iPhone Settings, or press and hold the map to set where you are.' : 'No location fix yet. Press and hold the map to set where you are, or wait a moment.';
     if (!state.center) { state.manual = true; query(OSAKA.lat, OSAKA.lon, 0); }
     render();
   }
@@ -1283,14 +1294,14 @@ svg { display: block; }
   map.on('moveend', () => {
     if (!state.center) return;
     const c = map.getCenter(); const d = H.haversine({ lat: c.lat, lon: c.lng }, state.center);
-    $('#searchHere').hidden = d < Math.max(350, state.radius * 0.6);
+    $('#searchHere').hidden = d < REQUERY_AFTER;
   });
   $('#searchHere').addEventListener('click', () => { const c = map.getCenter(); $('#searchHere').hidden = true; state.manual = true; state.selected = null; $('#locateBtn').classList.remove('on'); query(c.lat, c.lng, 0); });
   $('#locateBtn').addEventListener('click', () => {
     if (state.you && state.live) {
       const wasManual = state.manual; state.manual = false; setLive(true, 'Live');
       map.flyTo([state.you.lat, state.you.lon], Math.max(map.getZoom(), 16));
-      if (wasManual || !state.center || H.haversine(state.you, state.center) > 450) query(state.you.lat, state.you.lon, 0); else { refreshDistances(); render(); }
+      if (wasManual || !state.center || H.haversine(state.you, state.center) > REQUERY_AFTER) query(state.you.lat, state.you.lon, 0); else { refreshDistances(); render(); }
     } else startLocating();
   });
   $('#refreshBtn').addEventListener('click', () => { const o = origin(); query(o.lat, o.lon, 0, { force: true }); });
@@ -1323,11 +1334,12 @@ svg { display: block; }
     else if (state.updatedAt) meta.push(vis.length + ' within ' + H.fmtDist(state.radius) + ' · ' + timeAgo(state.updatedAt));
     else meta.push('Waiting for your location');
     $('#sheetMeta').textContent = meta.join(' ');
+    $('#refreshBtn').classList.toggle('spin', state.loading);
 
     lastRenderedAt = state.you ? { lat: state.you.lat, lon: state.you.lon } : null;
     drawOrigin();
     const list = $('#list'); const keepScroll = list.scrollTop; list.innerHTML = '';
-    if (state.error) { const d = document.createElement('div'); d.className = 'empty'; d.innerHTML = `<b>${esc(state.error)}</b>`; const b = document.createElement('button'); b.className = 'btn'; b.textContent = state.error.startsWith('The map') ? 'Try again' : 'Find me'; b.addEventListener('click', () => { state.error = null; if (b.textContent === 'Find me') startLocating(); else { const o = origin(); query(o.lat, o.lon, 0, { force: true }); } }); d.appendChild(b); list.appendChild(d); }
+    if (state.error) { const d = document.createElement('div'); d.className = 'empty'; d.innerHTML = `<b>${esc(state.error)}</b>`; const b = document.createElement('button'); b.className = 'btn'; const serverErr = state.errorKind === 'server'; b.textContent = serverErr ? 'Try again' : 'Find me'; b.addEventListener('click', () => { state.error = null; if (serverErr) { const o = origin(); query(o.lat, o.lon, 0, { force: true }); } else startLocating(); }); d.appendChild(b); list.appendChild(d); }
     if (state.loading && !state.places.length) { for (let i = 0; i < 3; i++) { const s = document.createElement('div'); s.className = 'skel'; list.appendChild(s); } }
     else if (!state.loading && state.updatedAt && !vis.length) {
       const d = document.createElement('div'); d.className = 'empty';
