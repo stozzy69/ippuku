@@ -953,7 +953,7 @@ svg { display: block; }
       <div class="rule"><div class="ico"><svg><use href="#i-cup"/></svg></div><div><b>Small kissaten can still let you smoke at the table</b><p>Osaka Prefecture rule since April 2025: cafés and restaurants with more than 30 m² of seating are non-smoking unless they have a sealed smoking room. Look for the 喫煙可能店 sign at the door of small old-school coffee shops.</p></div></div>
       <div class="rule"><div class="ico"><svg><use href="#i-room"/></svg></div><div><b>Two kinds of smoking room</b><p>喫煙専用室 (cigarette room): smoke only, no food or drink inside; your coffee waits at the table. 加熱式たばこ専用室 (heated-tobacco room): you can bring the coffee in, but it is heated tobacco only.</p></div></div>
       <div class="rule"><div class="ico"><svg><use href="#i-spot"/></svg></div><div><b>The cheap outdoor combo</b><p>Konbini coffee (Lawson, 7-Eleven, FamilyMart) and a public smoking spot. Outdoor spots show the nearest coffee source.</p></div></div>
-      <div class="rule"><div class="ico"><svg><use href="#i-q"/></svg></div><div><b>Unverified chains</b><p>Dashed markers are chains that usually run a smoking room (Komeda, Doutor, Veloce, Pronto, Excelsior, Kohikan and others) but with no smoking tag on the map yet. Check the door sign.</p></div></div>
+      <div class="rule"><div class="ico"><svg><use href="#i-q"/></svg></div><div><b>Unverified chains</b><p>Dashed markers are chains that usually run a smoking room (Komeda, Doutor, Veloce, Pronto, Excelsior, Kohikan and others) but with no smoking tag on the map yet. Check the door sign. Izakaya and restaurants that allow smoking are left out unless they read as a coffee place.</p></div></div>
       <small>Places © OpenStreetMap contributors, fetched live through the Overpass API. Base map: 地理院タイル (Geospatial Information Authority of Japan). A place is only as current as its last map edit; the open/closed state uses the hours recorded on the map.</small>
     </div>
   </div>
@@ -977,18 +977,33 @@ svg { display: block; }
 
   const CHAIN_RE = /コメダ|ドトール|ベローチェ|プロント|エクセルシオール|タリーズ|星乃珈琲|ルノアール|サンマルク|カフェ・ド・クリエ|珈琲館|上島珈琲|倉式珈琲|元町珈琲|支留比亜|快活|自遊空間|ポパイ|亜熱帯|コミックバスター|アプレシオ|Komeda|Doutor|Veloce|PRONTO|EXCELSIOR|Tully|Hoshino|Kohikan|Ueshima|Kaikatsu/i;
   const NETCAFE_RE = /快活|自遊空間|ポパイ|亜熱帯|コミックバスター|アプレシオ|Kaikatsu|net ?caf|internet/i;
-  const CHAIN_LIST = 'コメダ|ドトール|ベローチェ|プロント|エクセルシオール|タリーズ|星乃珈琲|ルノアール|サンマルク|カフェ・ド・クリエ|珈琲館|上島珈琲|倉式珈琲|元町珈琲|支留比亜|快活|自遊空間|ポパイ|亜熱帯|コミックバスター|アプレシオ|Komeda|Doutor|Veloce|PRONTO|EXCELSIOR|Tully|Hoshino|Kohikan|Ueshima|Kaikatsu';
+  const CHAIN_LIST = 'コメダ|ドトール|ベローチェ|プロント|エクセルシオール|タリーズ|星乃珈琲|ルノアール|サンマルク|カフェ・ド・クリエ|珈琲館|上島珈琲|倉式珈琲|元町珈琲|支留比亜|快活|自遊空間|ポパイ|亜熱帯|コミックバスター|アプレシオ|Komeda|KOMEDA|Doutor|DOUTOR|Veloce|VELOCE|Pronto|PRONTO|Excelsior|EXCELSIOR|Tully|TULLY|Hoshino|HOSHINO|Kohikan|Ueshima|Kaikatsu|KAIKATSU';
+  // Signals that a restaurant, bar or pub is really a coffee place (kissaten are often mapped as restaurants).
+  const COFFEE_RE = /珈琲|コーヒー|喫茶|カフェ|cafe|caf[eé]|coffee|kissa|パーラー|parlor|parlour|ティー|tea ?room/i;
+  const COFFEE_CUISINE_RE = /coffee|cafe|kissaten|tea|dessert|pancake|sandwich|bakery|cake|waffle/i;
 
+  // A bounding box is far cheaper for Overpass than an `around` circle; distance is filtered client-side afterwards.
+  function bboxOf(lat, lon, r) {
+    const dLat = r / 111320, dLon = r / (111320 * Math.cos(lat * Math.PI / 180));
+    return [lat - dLat, lon - dLon, lat + dLat, lon + dLon].map(x => (+x).toFixed(5)).join(',');
+  }
   function buildQuery(lat, lon, r) {
-    const a = `(around:${Math.round(r)},${(+lat).toFixed(5)},${(+lon).toFixed(5)})`;
-    const F = '"amenity"~"^(cafe|internet_cafe|restaurant|bar|pub|fast_food)$"';
-    return `[out:json][timeout:20];(` +
-      `nwr[${F}]["smoking"]["smoking"!~"^no$"]${a};` +
-      `nwr[${F}]["smoking:outside"="yes"]${a};` +
-      `nwr["amenity"="smoking_area"]${a};` +
-      `nwr["amenity"~"^(cafe|internet_cafe)$"]["name"~"${CHAIN_LIST}",i]${a};` +
-      `nwr["shop"="convenience"]${a};` +
+    const S = '["smoking"]["smoking"!~"^no$"]';
+    return `[out:json][timeout:25][bbox:${bboxOf(+lat, +lon, r)}];(` +
+      `nw["amenity"="cafe"]${S};nw["amenity"="internet_cafe"]${S};nw["amenity"="restaurant"]${S};nw["amenity"="bar"]${S};nw["amenity"="pub"]${S};nw["amenity"="fast_food"]${S};` +
+      `nw["amenity"="cafe"]["smoking:outside"="yes"];` +
+      `nw["amenity"="smoking_area"];` +
+      `nw["amenity"="cafe"]["name"~"${CHAIN_LIST}"];nw["amenity"="internet_cafe"]["name"~"${CHAIN_LIST}"];` +
+      `nw["shop"="convenience"];` +
       `);out center tags;`;
+  }
+
+  // Is coffee plausible here? Cafés, net cafés and fast food yes; restaurants, bars and pubs only when they read as a coffee place.
+  function servesCoffee(t) {
+    const a = t.amenity;
+    if (a === 'cafe' || a === 'internet_cafe' || a === 'fast_food' || a === 'smoking_area') return true;
+    if (a === 'restaurant' || a === 'bar' || a === 'pub') return COFFEE_CUISINE_RE.test(t.cuisine || '') || COFFEE_RE.test(displayName(t) + ' ' + (t['name:en'] || ''));
+    return false;
   }
 
   function haversine(a, b) {
@@ -1029,7 +1044,7 @@ svg { display: block; }
       const indoor = String(t.indoor || '').toLowerCase() === 'yes';
       return { kind: 'spot', indoor, outdoor: !indoor, verified: true, label: indoor ? 'Indoor smoking spot' : 'Public smoking spot', jp: '喫煙所', note: 'No coffee here; grab one nearby.' };
     }
-    if (t.shop === 'convenience') return null;
+    if (t.shop === 'convenience' || !servesCoffee(t)) return null;
     if (s === 'yes' || s === 'dedicated') {
       return { kind: s === 'dedicated' ? 'dedicated' : 'seat', indoor: true, outdoor: outdoorSeat || so === 'yes', verified: true,
         label: s === 'dedicated' ? "Smokers' café" : 'Smoke at your seat', jp: s === 'dedicated' ? '喫煙目的店' : '喫煙可', note: '' };
@@ -1106,7 +1121,7 @@ svg { display: block; }
     return parts.join('');
   }
 
-  root.Ippuku = { buildQuery, haversine, bearing, compass, fmtDist, walkMin, displayName, secondaryName, classify, parseOH, openStatus, addressOf, CHAIN_RE };
+  root.Ippuku = { buildQuery, bboxOf, servesCoffee, haversine, bearing, compass, fmtDist, walkMin, displayName, secondaryName, classify, parseOH, openStatus, addressOf, CHAIN_RE };
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
 <script>
@@ -1116,9 +1131,9 @@ svg { display: block; }
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const OSAKA = { lat: 34.7024, lon: 135.4959 }; // Osaka Station: the fallback when location is unavailable
-  const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.osm.jp/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
-  const RADIUS = 3000;            // one query covers a walkable radius; the list is sorted nearest-first
-  const REQUERY_AFTER = 1200;     // metres moved before the area is searched again
+  const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://lz4.overpass-api.de/api/interpreter', 'https://overpass.openstreetmap.fr/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
+  const RADIUS = 1500;            // one query covers a walkable radius; the list is sorted nearest-first
+  const REQUERY_AFTER = 600;      // metres moved before the area is searched again
   const CACHE_TTL = 30 * 60e3;
 
   const state = { you: null, live: false, manual: false, center: null, radius: RADIUS, places: [], sources: [], filter: 'all', showLikely: true, selected: null, updatedAt: null, loading: false, loadingSince: null, loadingNote: '', error: null, sheet: 'peek' };
@@ -1201,6 +1216,8 @@ svg { display: block; }
       const id = el.type[0] + el.id; if (seen.has(id)) continue; seen.add(id);
       const base = { id, lat, lon, tags: t, name: H.displayName(t) || (t.amenity === 'smoking_area' ? 'Smoking spot' : t.shop === 'convenience' ? 'Convenience store' : 'Café') };
       if (t.shop === 'convenience' || t.amenity === 'cafe' || t.amenity === 'internet_cafe') sources.push(base);
+      // the query is a square; keep the circle so "within 1.5 km" stays true
+      if (state.center && H.haversine(state.center, base) > state.radius * 1.02) continue;
       const cls = H.classify(t);
       if (cls) places.push(Object.assign({ cls }, base));
     }

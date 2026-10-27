@@ -8,9 +8,7 @@ const helpers = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)][1][1];
 vm.runInThisContext(helpers);
 const H = globalThis.Ippuku;
 // Candidates: what the app ships plus the individual overpass-api.de backends and OSM France.
-const endpoints = [...new Set([...html.matchAll(/https:\/\/[^'"\s]+\/interpreter/g)].map(m => m[0]).concat([
-  'https://lz4.overpass-api.de/api/interpreter', 'https://z.overpass-api.de/api/interpreter', 'https://overpass.openstreetmap.fr/api/interpreter', 'https://overpass.private.coffee/api/interpreter',
-]))];
+const endpoints = [...new Set([...html.matchAll(/https:\/\/[^'"\s]+\/interpreter/g)].map(m => m[0]))];
 
 const SPOTS = { umeda: [34.7025, 135.4959], namba: [34.6659, 135.5010], tennoji: [34.6467, 135.5135] };
 const RADIUS = +(/const RADIUS = (\d+)/.exec(html)?.[1] || 3000);
@@ -61,9 +59,10 @@ for (const ep of endpoints.slice(1)) {
   results.runs.push(r);
   await new Promise(res => setTimeout(res, 2000));
 }
-// How much of the time is the radius? Same spot at 1.5 km on the primary.
-{
-  const r = await run(endpoints[0], H.buildQuery(...SPOTS.umeda, 1500), 'umeda-1500m');
+// How much of the time is the radius? Same spot, wider, on the primary.
+for (const r2 of [2500, 3000]) {
+  await new Promise(res => setTimeout(res, 3000));
+  const r = await run(endpoints[0], H.buildQuery(...SPOTS.umeda, r2), 'umeda-' + r2 + 'm');
   if (r.elements) { r.summary = summarize(r.elements); delete r.elements; }
   results.runs.push(r);
 }
