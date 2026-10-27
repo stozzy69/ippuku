@@ -1,68 +1,353 @@
 {
-  "ranAt": "2026-10-27T02:52:06.552Z",
+  "ranAt": "2026-10-27T02:54:19.279Z",
   "radius": 3000,
   "endpoints": [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.osm.jp/api/interpreter",
     "https://overpass.private.coffee/api/interpreter",
-    "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
+    "https://z.overpass-api.de/api/interpreter",
+    "https://overpass.openstreetmap.fr/api/interpreter"
   ],
   "runs": [
     {
       "label": "umeda",
       "endpoint": "https://overpass-api.de/api/interpreter",
-      "status": 406,
-      "ms": 751,
-      "cors": null,
-      "bytes": 156,
-      "remark": null,
-      "elements": null,
-      "snippet": "<html>\r\n<head><title>406 Not Acceptable</title></head>\r\n<body>\r\n<center><h1>406 Not Acceptable</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n"
+      "error": "AbortError: This operation was aborted",
+      "ms": 40003
     },
     {
       "label": "namba",
       "endpoint": "https://overpass-api.de/api/interpreter",
-      "status": 406,
-      "ms": 138,
-      "cors": null,
-      "bytes": 156,
-      "remark": null,
-      "elements": null,
-      "snippet": "<html>\r\n<head><title>406 Not Acceptable</title></head>\r\n<body>\r\n<center><h1>406 Not Acceptable</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n"
+      "error": "AbortError: This operation was aborted",
+      "ms": 40001
     },
     {
       "label": "tennoji",
       "endpoint": "https://overpass-api.de/api/interpreter",
-      "status": 406,
-      "ms": 138,
-      "cors": null,
-      "bytes": 156,
-      "remark": null,
-      "elements": null,
-      "snippet": "<html>\r\n<head><title>406 Not Acceptable</title></head>\r\n<body>\r\n<center><h1>406 Not Acceptable</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n"
+      "error": "AbortError: This operation was aborted",
+      "ms": 40001
     },
     {
       "label": "umeda",
       "endpoint": "https://overpass.osm.jp/api/interpreter",
       "error": "TypeError: fetch failed",
-      "ms": 614
+      "ms": 616
     },
     {
       "label": "umeda",
       "endpoint": "https://overpass.private.coffee/api/interpreter",
-      "status": 429,
-      "ms": 1240,
-      "cors": null,
-      "bytes": 89,
-      "remark": null,
-      "elements": null,
-      "snippet": "Please include a meaningful User-Agent string with your requests to avoid rate-limiting.\n"
+      "error": "AbortError: This operation was aborted",
+      "ms": 40001
     },
     {
       "label": "umeda",
       "endpoint": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+      "status": 504,
+      "ms": 1596,
+      "cors": "*",
+      "bytes": 160,
+      "remark": null,
+      "elements": null,
+      "snippet": "<html>\r\n<head><title>504 Gateway Time-out</title></head>\r\n<body>\r\n<center><h1>504 Gateway Time-out</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n"
+    },
+    {
+      "label": "umeda",
+      "endpoint": "https://lz4.overpass-api.de/api/interpreter",
       "error": "AbortError: This operation was aborted",
-      "ms": 40000
+      "ms": 40001
+    },
+    {
+      "label": "umeda",
+      "endpoint": "https://z.overpass-api.de/api/interpreter",
+      "error": "TypeError: fetch failed",
+      "ms": 457
+    },
+    {
+      "label": "umeda",
+      "endpoint": "https://overpass.openstreetmap.fr/api/interpreter",
+      "status": 200,
+      "ms": 35393,
+      "cors": "*",
+      "bytes": 371,
+      "remark": "runtime error: Query timed out in \"query\" at line 1 after 35 seconds.",
+      "snippet": null,
+      "summary": {
+        "total": 0,
+        "byKind": {},
+        "smokingValues": {},
+        "konbini": 0,
+        "samples": []
+      }
+    },
+    {
+      "label": "umeda-1500m",
+      "endpoint": "https://overpass-api.de/api/interpreter",
+      "status": 200,
+      "ms": 37329,
+      "cors": "*",
+      "bytes": 156493,
+      "remark": null,
+      "snippet": null,
+      "summary": {
+        "total": 315,
+        "byKind": {
+          "likely": 51,
+          "seat": 56,
+          "section": 10,
+          "room": 5,
+          "spot": 12
+        },
+        "smokingValues": {
+          "yes": 57,
+          "separated": 10,
+          "isolated": 5
+        },
+        "konbini": 181,
+        "samples": [
+          [
+            "likely",
+            "サンマルクカフェ",
+            "",
+            "07:00-22:00"
+          ],
+          [
+            "likely",
+            "カフェ・ド・クリエ",
+            "",
+            ""
+          ],
+          [
+            "seat",
+            "まりも",
+            "yes",
+            ""
+          ],
+          [
+            "likely",
+            "ドトールコーヒーショップ",
+            "",
+            ""
+          ],
+          [
+            "seat",
+            "西屋",
+            "yes",
+            "Tu-Fr 11:30-14:30,16:00-24:00; Mo,Sa 16:00-24:00; PH closed"
+          ],
+          [
+            "likely",
+            "サンマルクカフェ",
+            "",
+            ""
+          ],
+          [
+            "section",
+            "ウェンディーズファーストキッチン",
+            "separated",
+            ""
+          ],
+          [
+            "seat",
+            "薩摩八郎",
+            "yes",
+            ""
+          ],
+          [
+            "seat",
+            "かどや",
+            "yes",
+            "24/7"
+          ],
+          [
+            "seat",
+            "横綱",
+            "yes",
+            "24/7"
+          ],
+          [
+            "seat",
+            "マリンカ",
+            "yes",
+            ""
+          ],
+          [
+            "seat",
+            "饂飩四国",
+            "yes",
+            ""
+          ],
+          [
+            "likely",
+            "カフェ・ベローチェ",
+            "",
+            ""
+          ],
+          [
+            "likely",
+            "タリーズコーヒー",
+            "",
+            ""
+          ],
+          [
+            "likely",
+            "タリーズコーヒー",
+            "",
+            ""
+          ],
+          [
+            "room",
+            "マクドナルド",
+            "isolated",
+            "06:00-23:30"
+          ],
+          [
+            "seat",
+            "Train Bar KODAMA",
+            "yes",
+            "18:00-04:00"
+          ],
+          [
+            "likely",
+            "タリーズコーヒー",
+            "",
+            ""
+          ],
+          [
+            "likely",
+            "ドトールコーヒーショップ",
+            "",
+            ""
+          ],
+          [
+            "likely",
+            "珈琲館",
+            "",
+            "08:00-20:00"
+          ],
+          [
+            "seat",
+            "喫茶ミキヤ",
+            "yes",
+            ""
+          ],
+          [
+            "seat",
+            "鶏っく",
+            "yes",
+            "17:00-24:00"
+          ],
+          [
+            "section",
+            "モスバーガー",
+            "separated",
+            "07:30-22:00"
+          ],
+          [
+            "likely",
+            "メディアカフェ ポパイ",
+            "",
+            ""
+          ],
+          [
+            "likely",
+            "ドトールコーヒーショップ",
+            "",
+            ""
+          ],
+          [
+            "likely",
+            "ドトールコーヒーショップ",
+            "",
+            ""
+          ],
+          [
+            "likely",
+            "ドトールコーヒーショップ",
+            "",
+            ""
+          ],
+          [
+            "likely",
+            "ドトールコーヒーショップ",
+            "",
+            "Mo-Fr 07:00-19:00; Sa 09:00-15:00; PH off"
+          ],
+          [
+            "likely",
+            "ドトールコーヒーショップ",
+            "",
+            ""
+          ],
+          [
+            "likely",
+            "ドトールコーヒーショップ",
+            "",
+            ""
+          ],
+          [
+            "likely",
+            "ドトールコーヒーショップ",
+            "",
+            ""
+          ],
+          [
+            "room",
+            "サイゼリヤ",
+            "isolated",
+            "Mo-Su 10:00-05:00"
+          ],
+          [
+            "likely",
+            "タリーズコーヒー",
+            "",
+            "08:00-19:00"
+          ],
+          [
+            "section",
+            "ドトールコーヒーショップ天満駅前店",
+            "separated",
+            "Mo-Fr 07:15-21:00; Sa-Su,PH 08:00-21:00"
+          ],
+          [
+            "likely",
+            "上島珈琲店",
+            "",
+            ""
+          ],
+          [
+            "likely",
+            "サンマルクカフェ",
+            "",
+            "Mo-Su,PH 07:00-22:30"
+          ],
+          [
+            "seat",
+            "囲炉裏と釜飯 しずる",
+            "yes",
+            "Mo-Fr 11:30-14:00, 17:30-23:45; Sa 17:45-23:45"
+          ],
+          [
+            "likely",
+            "タリーズコーヒー",
+            "",
+            ""
+          ],
+          [
+            "likely",
+            "タリーズコーヒー",
+            "",
+            ""
+          ],
+          [
+            "seat",
+            "天下茶屋カメちゃん",
+            "yes",
+            ""
+          ]
+        ]
+      }
     }
   ]
 }
