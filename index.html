@@ -1190,20 +1190,26 @@ svg { display: block; }
   function readCache(k) { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v && Date.now() - v.t < CACHE_TTL ? v : null; } catch (e) { return null; } }
   function writeCache(k, elements) { try { localStorage.setItem(k, JSON.stringify({ t: Date.now(), elements })); } catch (e) {} }
 
-  async function overpass(q, onProgress) {
-    let lastErr = null;
-    for (let i = 0; i < ENDPOINTS.length; i++) {
-      const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 18000);
-      if (onProgress) onProgress(i);
-      try {
-        const res = await fetch(ENDPOINTS[i], { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctrl.signal });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        if (!Array.isArray(data.elements)) throw new Error('bad response');
-        return data;
-      } catch (e) { lastErr = e; } finally { clearTimeout(timer); }
-    }
-    throw lastErr || new Error('no endpoint');
+  // Hedged request: the main server answers in a few seconds when it has capacity but queues or 502s when it doesn't,
+  // so if a server hasn't answered within HEDGE_MS the next mirror is asked in parallel; the first good answer wins.
+  const HEDGE_MS = 5000, PER_SERVER_MS = 25000;
+  function overpass(q, onProgress) {
+    return new Promise((resolve, reject) => {
+      const ctrls = []; let started = 0, failed = 0, done = false, lastErr = null;
+      const body = 'data=' + encodeURIComponent(q);
+      const startNext = () => {
+        if (done || started >= ENDPOINTS.length) return;
+        const i = started++; const ctrl = new AbortController(); ctrls.push(ctrl);
+        if (onProgress) onProgress(i);
+        const timer = setTimeout(() => ctrl.abort(), PER_SERVER_MS);
+        fetch(ENDPOINTS[i], { method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctrl.signal })
+          .then(async res => { if (!res.ok) throw new Error('HTTP ' + res.status); const data = await res.json(); if (!Array.isArray(data.elements)) throw new Error('bad response'); return data; })
+          .then(data => { clearTimeout(timer); if (done) return; done = true; for (const c of ctrls) if (c !== ctrl) c.abort(); resolve(data); })
+          .catch(e => { clearTimeout(timer); if (done) return; lastErr = e; if (++failed >= ENDPOINTS.length) reject(lastErr); else startNext(); });
+        setTimeout(() => { if (!done) startNext(); }, HEDGE_MS);
+      };
+      startNext();
+    });
   }
   // While a search runs, the sheet's meta line counts the seconds so a slow server looks slow rather than dead.
   setInterval(() => { if (state.loading && state.loadingSince) $('#sheetMeta').textContent = 'Searching ' + H.fmtDist(state.radius) + '… ' + Math.round((Date.now() - state.loadingSince) / 1000) + ' s' + state.loadingNote; }, 1000);
